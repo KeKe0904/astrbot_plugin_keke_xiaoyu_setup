@@ -95,7 +95,7 @@ class KekeXiaoyuSetupPlugin(Star):
     # 命令触发的处理
     @filter.command("astr")
     async def astr_command(self, event: AstrMessageEvent, args=None):
-        """部署帮助命令，使用 /astr 问题 处理"""
+        """部署帮助命令"""
 
         if not args:
             yield event.plain_result("请输入部署问题，例如：/astr 如何安装 AstrBot")
