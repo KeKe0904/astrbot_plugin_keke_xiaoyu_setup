@@ -2,7 +2,7 @@ from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 
-@register("astrbot_plugin_keke_xiaoyu_setup", "keke_xiaoyu", "小羽ASTRBOT部署帮助插件", "1.1.5")
+@register("astrbot_plugin_keke_xiaoyu_setup", "keke_xiaoyu", "小羽ASTRBOT部署帮助插件", "1.1.7")
 class KekeXiaoyuSetupPlugin(Star):
     """小羽ASTRBOT部署帮助插件
     
@@ -28,13 +28,22 @@ class KekeXiaoyuSetupPlugin(Star):
         self.memory_max_days = 7  # 最大记忆天数
         # 读取配置
         try:
-            # 尝试使用get_config方法获取配置
-            config = self.get_config()
-            self.auto_listen_enabled = config.get("auto_listen", True)
+            # 尝试使用不同的方式获取配置
+            if hasattr(self, 'get_config'):
+                config = self.get_config()
+                self.auto_listen_enabled = config.get("auto_listen", True)
+            elif hasattr(self.context, 'config'):
+                self.auto_listen_enabled = self.context.config.get("auto_listen", True)
+            else:
+                # 如果无法获取配置，使用默认值
+                self.auto_listen_enabled = True
         except Exception as e:
             # 如果获取配置失败，使用默认值
             logger.warning(f"获取配置失败，使用默认值: {str(e)}")
             self.auto_listen_enabled = True
+        
+        # 尝试注册消息事件监听器
+        self._register_message_listener()
 
     async def initialize(self):
         """初始化插件
@@ -68,49 +77,99 @@ class KekeXiaoyuSetupPlugin(Star):
         """
         # 始终返回True，确保所有平台都支持自动监听
         return True
-
-    # 自动监听方法
-    try:
-        # 尝试使用filter.message装饰器
-        @filter.message
-        async def on_message(self, event: AstrMessageEvent):
-            """自动识别并回复AstrBot或NapCat相关问题
+    
+    def _register_message_listener(self):
+        """尝试注册消息事件监听器
+        
+        尝试使用不同的方式注册消息事件监听器，以支持更多平台
+        特别确保在QQ官方机器人和onebot平台上支持
+        """
+        try:
+            # 尝试使用filter.message装饰器（适用于大多数平台）
+            if hasattr(filter, 'message'):
+                # 动态注册消息监听器
+                def on_message_decorator(func):
+                    return filter.message(func)
+                
+                @on_message_decorator
+                async def on_message(self, event: AstrMessageEvent):
+                    """自动识别并回复AstrBot或NapCat相关问题
+                    
+                    Args:
+                        event: 消息事件对象
+                        
+                    Returns:
+                        None
+                    """
+                    await self._handle_message(event)
+                
+                # 将方法绑定到实例
+                self.on_message = on_message.__get__(self, self.__class__)
+                logger.info("成功注册消息事件监听器（使用filter.message）")
+            # 尝试其他可能的消息监听方式（适用于特定平台）
+            elif hasattr(filter, 'message_event'):
+                # 某些平台可能使用message_event而不是message
+                def on_message_event_decorator(func):
+                    return filter.message_event(func)
+                
+                @on_message_event_decorator
+                async def on_message_event(self, event: AstrMessageEvent):
+                    """自动识别并回复AstrBot或NapCat相关问题
+                    
+                    Args:
+                        event: 消息事件对象
+                        
+                    Returns:
+                        None
+                    """
+                    await self._handle_message(event)
+                
+                # 将方法绑定到实例
+                self.on_message_event = on_message_event.__get__(self, self.__class__)
+                logger.info("成功注册消息事件监听器（使用filter.message_event）")
+            else:
+                # 尝试其他可能的消息监听方式
+                # 这里可以添加其他平台特定的消息监听注册方式
+                logger.warning("平台可能不支持消息事件监听，但插件将继续运行")
+        except Exception as e:
+            # 如果注册失败，记录错误但继续运行
+            logger.warning(f"注册消息事件监听器失败: {str(e)}")
+    
+    async def _handle_message(self, event: AstrMessageEvent):
+        """处理消息的方法
+        
+        Args:
+            event: 消息事件对象
             
-            Args:
-                event: 消息事件对象
-                
-            Returns:
-                None
-            """
-            try:
-                message_str = event.message_str.strip()
-                if not message_str:
-                    return
+        Returns:
+            None
+        """
+        try:
+            message_str = event.message_str.strip()
+            if not message_str:
+                return
 
-                # 优化关键词检测，分为核心关键词和辅助关键词
-                core_keywords = ["astrbot", "napcat"]
-                helper_keywords = ["部署", "安装", "配置", "搭建", "启动", "运行", "错误", "问题", "无法", "怎么", "如何", "help", "install", "setup", "config", "deploy"]
-                
-                # 检测消息是否包含核心关键词或多个辅助关键词
-                message_lower = message_str.lower()
-                contains_core = any(k in message_lower for k in core_keywords)
-                contains_helper = sum(1 for k in helper_keywords if k in message_lower)
-                
-                # 检查自动监听是否启用
-                if not self.auto_listen_enabled:
-                    return
-                
-                # 触发条件：包含核心关键词，或包含2个以上辅助关键词
-                if contains_core or contains_helper >= 2:
-                    logger.info(f"检测到相关问题: {message_str}")
-                    # 使用异步任务处理，避免阻塞消息处理
-                    import asyncio
-                    asyncio.create_task(self._process_message(event, message_str))
-            except Exception as e:
-                logger.error(f"自动监听处理错误: {str(e)}")
-    except Exception as e:
-        # 如果filter.message不存在，记录错误但继续运行
-        logger.warning(f"平台可能不支持自动监听，但插件将继续运行: {str(e)}")
+            # 优化关键词检测，分为核心关键词和辅助关键词
+            core_keywords = ["astrbot", "napcat"]
+            helper_keywords = ["部署", "安装", "配置", "搭建", "启动", "运行", "错误", "问题", "无法", "怎么", "如何", "help", "install", "setup", "config", "deploy"]
+            
+            # 检测消息是否包含核心关键词或多个辅助关键词
+            message_lower = message_str.lower()
+            contains_core = any(k in message_lower for k in core_keywords)
+            contains_helper = sum(1 for k in helper_keywords if k in message_lower)
+            
+            # 检查自动监听是否启用
+            if not self.auto_listen_enabled:
+                return
+            
+            # 触发条件：包含核心关键词，或包含2个以上辅助关键词
+            if contains_core or contains_helper >= 2:
+                logger.info(f"检测到相关问题: {message_str}")
+                # 使用异步任务处理，避免阻塞消息处理
+                import asyncio
+                asyncio.create_task(self._process_message(event, message_str))
+        except Exception as e:
+            logger.error(f"自动监听处理错误: {str(e)}")
     
     async def _process_message(self, event: AstrMessageEvent, message_str: str):
         """处理消息的异步方法
