@@ -15,7 +15,6 @@ support_platforms:
   - slack
   - kook
   - vocechat
-  - wechat
   - satori
   - misskey
   - line

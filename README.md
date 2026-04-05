@@ -2,7 +2,7 @@
 
 ## 插件简介
 
-小羽AstrBot部署帮助插件是一个专门为 AstrBot 用户设计的部署辅助工具，通过智能记忆系统为用户提供部署指导和问题解决方案。
+小羽AstrBot部署帮助插件是一个智能的AstrBot和NapCat部署辅助插件，具备智能监听、命令触发、记忆学习和智能清理功能。
 
 ### 制作人
 
@@ -46,7 +46,6 @@
 - slack
 - kook
 - vocechat
-- wechat
 - satori
 - misskey
 - line
