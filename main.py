@@ -2,7 +2,7 @@ from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 
-@register("astrbot_plugin_keke_xiaoyu_setup", "keke_xiaoyu", "小羽ASTRBOT部署帮助插件", "1.1.0")
+@register("astrbot_plugin_keke_xiaoyu_setup", "keke_xiaoyu", "小羽ASTRBOT部署帮助插件", "1.1.2")
 class KekeXiaoyuSetupPlugin(Star):
     """小羽ASTRBOT部署帮助插件
     
@@ -28,7 +28,25 @@ class KekeXiaoyuSetupPlugin(Star):
         self.memory_max_days = 7  # 最大记忆天数
 
     async def initialize(self):
-        """初始化插件"""
+        """初始化插件
+        
+        自检所有功能是否正常启动，并检查记忆存储的消息数量
+        """
+        # 自检功能
+        logger.info("小羽ASTRBOT部署帮助插件开始初始化...")
+        
+        # 检查自动监听功能
+        auto_listen_status = "正常" if self.has_auto_listen else "未启用（平台不支持）"
+        logger.info(f"自动监听功能: {auto_listen_status}")
+        
+        # 检查记忆存储
+        try:
+            memory = await self.get_memory()
+            memory_count = len(memory.get("items", []))
+            logger.info(f"记忆存储正常，当前存储了 {memory_count} 条消息")
+        except Exception as e:
+            logger.error(f"记忆存储检查失败: {str(e)}")
+        
         logger.info("小羽ASTRBOT部署帮助插件初始化完成")
 
     # 尝试添加自动监听功能，如果filter.message不存在则跳过
@@ -108,6 +126,18 @@ class KekeXiaoyuSetupPlugin(Star):
         query = " ".join(args)
         async for result in self.search_and_reply(event, query):
             yield result
+    
+    @filter.command("memory")
+    async def memory_status(self, event: AstrMessageEvent, args=None):
+        """查看记忆存储状态"""
+        try:
+            memory = await self.get_memory()
+            memory_count = len(memory.get("items", []))
+            reply = f"当前记忆存储状态：\n- 存储消息数量：{memory_count}\n- 最大存储数量：{self.memory_max_count}\n- 记忆保留天数：{self.memory_max_days}"
+            yield event.plain_result(reply)
+        except Exception as e:
+            logger.error(f"获取记忆状态失败: {str(e)}")
+            yield event.plain_result(f"获取记忆状态失败: {str(e)}")
 
     async def get_memory(self):
         """获取记忆存储
