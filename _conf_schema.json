@@ -1,7 +1,7 @@
 {
   "auto_listen": {
     "description": "启用自动监听功能",
-    "type": "boolean",
+    "type": "bool",
     "hint": "当您在聊天中提及AstrBot或NapCat相关关键词时，插件会自动识别并回复相关解决方案",
     "default": true
   }
