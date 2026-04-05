@@ -2,7 +2,7 @@ from astrbot.api.event import filter, AstrMessageEvent
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 
-@register("astrbot_plugin_keke_xiaoyu_setup", "keke_xiaoyu", "小羽ASTRBOT部署帮助插件", "1.1.4")
+@register("astrbot_plugin_keke_xiaoyu_setup", "keke_xiaoyu", "小羽ASTRBOT部署帮助插件", "1.1.5")
 class KekeXiaoyuSetupPlugin(Star):
     """小羽ASTRBOT部署帮助插件
     
@@ -27,7 +27,14 @@ class KekeXiaoyuSetupPlugin(Star):
         self.memory_max_count = 1000  # 最大记忆数量
         self.memory_max_days = 7  # 最大记忆天数
         # 读取配置
-        self.auto_listen_enabled = self.config.get("auto_listen", True)
+        try:
+            # 尝试使用get_config方法获取配置
+            config = self.get_config()
+            self.auto_listen_enabled = config.get("auto_listen", True)
+        except Exception as e:
+            # 如果获取配置失败，使用默认值
+            logger.warning(f"获取配置失败，使用默认值: {str(e)}")
+            self.auto_listen_enabled = True
 
     async def initialize(self):
         """初始化插件
